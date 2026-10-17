@@ -16,7 +16,10 @@ directory; nothing here relicenses it.
 | `Gabson0x_bountyforge` | https://github.com/Gabson0x/bountyforge | **NO LICENCE DECLARED** | 1 |
 | `shaniidev_bug-reaper` | https://github.com/shaniidev/bug-reaper | MIT | 1 |
 
-Total: 1,055 skills.
+Total vendored: 1,055 skills across the nine collections above.
+
+The `ctf-operator` agent preset under `agents/` additionally carries 14 CTF
+skills of its own, for **1,069 skills in the repository**.
 
 ## Two directories carry no licence
 

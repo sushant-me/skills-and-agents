@@ -3,8 +3,9 @@
 A private archive of the agent skills and agent presets used on this machine,
 vendored so they survive upstream deletions, branch churn and re-clones.
 
-**1,055 skills** across 9 upstream collections, plus the `ctf-operator` agent
-preset. Roughly 89 MB.
+**1,069 skills** — 1,055 across 9 vendored upstream collections, plus 14 CTF
+skills inside the `ctf-operator` agent preset. 8,267 tracked files, ~69 MB
+packed.
 
 ## Layout
 
