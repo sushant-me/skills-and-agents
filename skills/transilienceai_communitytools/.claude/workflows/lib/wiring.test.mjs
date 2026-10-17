@@ -1,0 +1,459 @@
+// wiring.test.mjs — static-source assertions that the orchestrator + loop are
+// wired for the strict per-finding interleaved model (things unit tests / parity
+// can't see: no Stage-2 validate pass, inline_validate threaded, drop-entirely
+// routing, coverage-by-VALID). Run: node .claude/workflows/lib/wiring.test.mjs
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const wfDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const read = (f) => readFileSync(join(wfDir, f), 'utf8');
+const pe = read('pentest-engagement.js');
+const cl = read('coordinator-loop.js');
+const vf = read('validate-findings.js');
+const mr = read('merge-reports.js');
+const su = read('skill-update.js');
+const pv = readFileSync(join(wfDir, '..', '..', 'tools', 'provision_vantage.sh'), 'utf8');
+const ciYml = readFileSync(join(wfDir, '..', '..', '.github', 'workflows', 'pentest-workflow-tests.yml'), 'utf8');
+
+let pass = 0, fail = 0; const fails = [];
+const ok = (cond, msg) => { if (cond) pass++; else { fail++; fails.push(`✗ ${msg}`); } };
+
+// pentest-engagement: validation is INLINE — no Stage-2 validate-findings call,
+// inline_validate + business_tier + frozen-operand paths threaded, snapshot created.
+ok(!/workflow\('validate-findings'/.test(pe), 'pentest-engagement no longer calls the validate-findings workflow (validation is inline)');
+ok((pe.match(/inline_validate: true/g) || []).length >= 4, 'inline_validate:true passed for the WEB, NETWORK and BOTH mobile (app + recovered-backend) loops');
+ok(/nvd_cache_dir: nvdCacheDir/.test(pe) && /kev_snapshot: kevSnapshot/.test(pe), 'frozen NVD/KEV snapshot paths threaded into the loop');
+ok(/assets: N,/.test(pe) && /assets: NH,/.test(pe) && /assets: NM,/.test(pe), 'assets:N (web) + assets:NH (network) + assets:NM (mobile) threaded — the governor partitions the cap by the PER-RUN running count');
+ok(/kev-lookup\.py --cache-dir/.test(pe), 'Setup freezes the KEV snapshot via kev-lookup.py --cache-dir');
+ok(!/validate: false/.test(pe), 'the retired validate:false flag is gone');
+ok((pe.match(/VALID\/REPAIRED/g) || []).length >= 3, 'Correlate reads VALID+REPAIRED (all three modes), not VALID-only');
+
+// coordinator-loop: interleave machinery present; vestigial P5 retired.
+ok(/const INLINE_VALIDATE = shouldInlineValidate\(MODE, a\.inline_validate\)/.test(cl), 'coordinator-loop gates the lane on shouldInlineValidate');
+ok(/async function validateBatch\(/.test(cl) && /async function validateOneCandidate\(/.test(cl), 'coordinator-loop defines the strict per-finding validateBatch/validateOneCandidate');
+ok(/if \(INLINE_VALIDATE\) await validateBatch\(integ\.new_findings/.test(cl), 'the loop validates each batch of new candidates inline before continuing');
+ok(/backstopDecision\(agentsSpawned, HARD_RESERVE\)/.test(cl), 'the fixed-quorum + deferral governor is wired (never shrinks the quorum)');
+ok(/COVERAGE-BY-VALID/.test(cl), 'INTEGRATE uses coverage-by-VALID (a class covers only on a VALID finding)');
+ok(!/function validateFindingPrompt/.test(cl) && !/VALIDATE_FINDING_SCHEMA =/.test(cl), 'the vestigial lightweight P5 validator is retired');
+ok(!/const RUN_VALIDATION =/.test(cl), 'the RUN_VALIDATION arg is retired (replaced by INLINE_VALIDATE)');
+ok(/verdict_counts: summarizeLoopCounts\(/.test(cl), 'the loop returns verdict_counts so adaptSummary never reads a silent null');
+
+// validate-findings (standalone): drop-entirely routing + raised quorum.
+ok(/const sub = terminalSubdir\(r\.verdict\.verdict\)/.test(vf), 'standalone validate-findings routes terminal verdicts via terminalSubdir (DEMOTED -> dropped/)');
+ok(/: DEFAULT_VOTES/.test(vf), 'standalone VOTES defaults to DEFAULT_VOTES (raised quorum)');
+
+// C3 replay-cache (Phase 2): validate-findings restores hits + stores live verdicts, tool-mediated.
+ok(/const VALIDATION_CACHE_DIR = a\.validation_cache_dir/.test(vf), 'validate-findings reads a validation_cache_dir (C3 opt-in)');
+ok(/validation_cache\.py restore/.test(vf) && /validation_cache\.py store/.test(vf), 'C3 restore (skip lane on hit) + store (record live verdict) are wired via the tool');
+ok(/toValidate = inventory\.filter/.test(vf), 'restored (cache-hit) findings are excluded from the live validation set');
+ok(/mkdir -p engagement_dir\/artifacts\/nvd-cache engagement_dir\/artifacts\/validation-cache/.test(pe), 'Setup creates the validation-cache dir alongside nvd-cache');
+
+// deterministic activity / source-IP logging: Setup + Bootstrap capture the primary
+// runner's egress vantage, thread the report counts, and keep the raw command ledger
+// out of the client deliverable.
+ok(/logs\/activity/.test(pe), 'pentest-engagement Setup creates logs/activity');
+ok(/active-engagement/.test(pe), 'Setup writes the active-engagement pointer');
+ok(/ifconfig\.me/.test(pe) && /api\.ipify\.org/.test(pe) && /unavailable/.test(pe), 'Setup captures egress IP with fallback');
+ok(/register_source_ip\.py/.test(pe) && /--role primary-runner/.test(pe), 'Setup registers the primary-runner source IP');
+ok(/tools_used_count/.test(pe) && /source_ips_count/.test(pe) && /reconciliation_gaps/.test(pe), 'finalize threads activity counts + reconciliation gaps');
+ok(/tool-invocations\.jsonl/.test(pe), 'finalize zip excludes the raw command ledger from the client deliverable');
+ok(/logs\/activity/.test(cl) && /active-engagement/.test(cl), 'coordinator-loop Bootstrap creates logs/activity + pointer');
+ok(/register_source_ip\.py/.test(cl) && /--role primary-runner/.test(cl), 'coordinator-loop Bootstrap registers the primary-runner IP');
+
+// network-scan: full-range default profiles + two-stage + odd-TLS + host-count guard.
+ok(/const fullRange = fullPorts \|\| scanProfile === 'standard'/.test(pe), 'standard profile is now full-range (-p-)');
+ok(/const portSpec = fullRange \? '-p-' :/.test(pe), 'portSpec branches on fullRange (not a bare literal)');
+ok(/-p 1-1024,\$\{LESS_COMMON_PORTS\}/.test(pe), 'light/bounded profile = 1-1024 + curated less-common set');
+ok(/const udpScan = !!input\.udp \|\| scanProfile === 'full'/.test(pe), 'full profile auto-enables UDP');
+ok(/STAGE A fast SYN sweep of ALL 65535/.test(pe) && /STAGE B version\+scripts on ONLY those open ports/.test(pe), 'full-range path is two-stage (SYN sweep -> -sV on found-open ports, no host-timeout truncation)');
+ok(/--script ssl-cert,ssl-enum-ciphers/.test(pe), 'odd-port TLS is fingerprinted via the ssl-cert/ssl-enum-ciphers NSE');
+ok(/FULL_RANGE_HOST_CAP/.test(pe) && /DOWNGRADE to the bounded set/.test(pe), 'full-range is host-count-guarded (dense slices fall back to bounded)');
+ok(!/Do NOT scan all 65535 ports/.test(pe), 'the blanket "Do NOT scan all 65535" clause is dropped on the full-range path');
+
+// network-scan: source-IP/geo-allowlist detection + 2nd-geography auto-probe.
+ok(/filtered:/.test(pe) && /existence proof from this vantage/i.test(pe), 'SCAN_SLICE_SCHEMA carries the filtered[] existence-signal set');
+ok(/const \{ signature: allowlistDetected, filteredHosts \} = detectAllowlist\(sliceResults\)/.test(pe), 'allowlist signature computed via detectAllowlist');
+ok(/resolveGeoZones\(\{ geoVantages, primaryGeo \}\)/.test(pe), 'the <=2 second-vantage zones come from resolveGeoZones');
+ok(/const willProvision = autoProvision && !dryRun && geos\.length > 0/.test(pe), 'geo-escalation is gated on autoProvision && !dryRun (clean/dry runs never spend)');
+{ // the newly_reachable -> allLive in-memory merge MUST run BEFORE ranking (else it only hits disk)
+  const mergeIdx = pe.indexOf('allLive.push({ ...h');
+  const rankedIdx = pe.indexOf('const ranked = allLive.filter');
+  ok(mergeIdx > 0 && rankedIdx > 0 && mergeIdx < rankedIdx, 'geo-reached hosts merge into in-memory allLive BEFORE ranking (reach the deep-dive)');
+}
+ok(/runGeoEscalation\(\{ geos, filteredHosts \}\)/.test(pe), 'runGeoEscalation re-probes ONLY the filtered hosts');
+ok(/provision_vantage\.sh --teardown/.test(pe) && /provision_vantage\.sh --reap/.test(pe) && /trap '\[ -n "\$handle" \]/.test(pe) && /--ssh-ready/.test(pe), 'geo-probe agent creates/reaps/tears-down via provision_vantage.sh with a teardown trap');
+ok(/no_surface_from: geosTried\.slice\(\)/.test(pe), 'still-dark filtered hosts are recorded no_surface_from (honest negative, never bare dead)');
+ok(/udp: udpScan/.test(pe) && /allowlist_detected: allowlistDetected/.test(pe) && /escalation_plan: escalationPlan/.test(pe) && /no_surface_from: noSurfaceFrom/.test(pe), 'dryRun return surfaces udp + allowlist_detected + escalation_plan + no_surface_from');
+ok(/ipinfo\.io\/\$PRIMARY_IP\/country/.test(pe) && /primary_geo/.test(pe), 'Setup best-effort geolocates the primary egress (primary_geo) for a complementary 2nd vantage');
+
+// provision_vantage.sh: ephemerality guarantees (crash-safe VM lifecycle).
+ok(/--teardown\)/.test(pv) && /--reap\)/.test(pv) && /--ssh-ready\)/.test(pv), 'provision_vantage.sh implements --teardown / --reap / --ssh-ready');
+ok(/--max-run-duration="\$\{TTL\}s" --instance-termination-action=DELETE/.test(pv), 'created VMs carry a provider-native max-run-duration TTL + DELETE (SIGKILL-proof backstop)');
+ok(/--labels="engagement=\$\{eng_id\}/.test(pv), 'created VMs are labelled engagement=<id> so --reap can GC orphans');
+ok(/--role decommissioned/.test(pv) || /decommissioned "torn down/.test(pv), 'teardown APPENDS a role:decommissioned ledger line (append-only, never a mutation)');
+
+// ---------------------------------------------------------------------------
+// Deterministic attack-class coverage gate (surface-unit × attack-class):
+// finalize runs it, JS hard-gates COMPLETE on it, network is tiered + coverage-gated.
+// ---------------------------------------------------------------------------
+ok(/tools\/coverage_gate\.py --engagement-dir/.test(pe), 'finalize runner runs coverage_gate.py --engagement-dir (deterministic gate)');
+ok(/tools\/network_coverage_map\.py --engagement-dir/.test(pe), 'finalize runner runs network_coverage_map.py before the gate (swept-host tail)');
+ok(/coverage_complete: \{ type: 'boolean'/.test(pe), 'FINALIZE_SCHEMA carries coverage_complete');
+ok(/finalizeGate\(\{ report_data_ok: r\.report_data_ok, report_data_lint_ok: r\.report_data_lint_ok, renderGateOk, coverage_complete: r\.coverage_complete/.test(pe), 'the JS hard gate routes through finalizeGate incl. report_data_lint_ok + coverage_complete');
+
+// P0 skill-gap tooling wiring (report_data_lint / netscan_guard / vantage_diagnose / deferred coverage)
+ok(/report_data_lint\.py/.test(pe), 'finalize runs report_data_lint.py as a hard gate before render');
+ok(/report_data_lint_ok: \{ type: 'boolean'/.test(pe), 'FINALIZE_SCHEMA carries report_data_lint_ok');
+ok(/netscan_guard\.py --xml '.*recon\/slice-\*-services\.xml'/.test(pe), 'finalize runs netscan_guard.py over the GUARANTEED slice service XMLs (not hosts/*/recon)');
+ok(/netscan_guard\.py --xml .*slice-\$\{idx\}-services\.xml/.test(pe), 'slice worker runs netscan_guard per-slice (isolated truncation check + --suppress-cves)');
+ok(/--suppress-cves/.test(pe), 'netscan_guard CVE-suppression runs before nvd-lookup enrichment');
+ok(/vantage_diagnose\.py --provider-auth/.test(pe), 'geo-escalation gates provisioning on the vantage_diagnose cloud-auth precheck');
+ok(/coverage_gate\.py --engagement-dir \$\{engagementDir\} --accept-deferrals/.test(pe), 'finalize coverage gate passes --accept-deferrals (substantiated deferrals finalize with caveat)');
+ok(/coverage_deferred: \{ type: 'number'/.test(pe), 'FINALIZE_SCHEMA carries coverage_deferred');
+// merge-reports: the same report_data_lint hard gate before render
+ok(/report_data_lint\.py/.test(mr), 'merge-reports runs report_data_lint.py before render');
+ok(/finalize\.report_data_lint_ok/.test(mr), 'merge-reports final gate requires report_data_lint_ok');
+ok(/const coverageComplete = wantReport \? \(report\.coverage_complete === true\) : true/.test(pe), 'WEB engagement_status derives from the gate (fails closed)');
+ok(/coverageComplete && convStatus === 'COMPLETE'/.test(pe), 'WEB COMPLETE requires the gate coverage_complete AND convergence (nothing resumable)');
+ok(/const netCoverageComplete = wantReport \? \(reportNet\.coverage_complete === true\) : true/.test(pe), 'NETWORK engagement_status derives from the gate (fails closed)');
+ok(/netCoverageComplete && netConvStatus === 'COMPLETE'/.test(pe), 'NETWORK COMPLETE requires scanComplete AND gate coverage_complete AND convergence');
+ok(/const isAppBearing = /.test(pe) && /allLive\.filter\(h => h && isAppBearing\(h\)\)/.test(pe), 'NETWORK deep-dive selects app-bearing hosts (tiered), not an arbitrary top-N');
+ok(/mode: 'coverage',\s+\/\/ tiered/.test(pe), 'NETWORK app-bearing deep-dive loops run in coverage mode');
+ok(/deepenTop === 0 \? \[\] : \(deepenTop > 0 \? ranked\.slice\(0, deepenTop\) : ranked\)/.test(pe), 'deepen_top: 0 disables, N caps, null(default) = ALL app-bearing hosts');
+ok(/recon\/inventory\/surface\.json \(schema surface\/v2/.test(pe), 'NETWORK app-bearing loop is told to emit surface/v2 so unit-scope cells are enumerated');
+
+// coordinator-loop: coverage mode is driven by the deterministic tools, not agent narrative.
+ok(/tools\/enumerate_cells\.py --asset-dir OUTPUT_DIR/.test(cl), 'THINK runs enumerate_cells.py to compute the applicable cells');
+ok(/tools\/coverage_gate\.py --asset-dir OUTPUT_DIR --emit-open/.test(cl), 'THINK runs coverage_gate.py --emit-open to inject the open-cell backlog');
+ok(/covers_cells: \{ type: 'array'/.test(cl), 'THINK schema carries covers_cells (deterministic (key,class_id) cells)');
+ok(/coverage_complete: \{ type: 'boolean'/.test(cl), 'INTEGRATE schema carries coverage_complete (the gate\'s "complete")');
+ok(/Set goal_reached=true ONLY when coverage_complete is true/.test(cl), 'INTEGRATE gates goal_reached on the deterministic coverage_complete');
+ok(/interim\.class_id = f\.covers_class/.test(cl) && /interim\.unit_refs = /.test(cl) && /interim\.asset_tag = OUTPUT_DIR/.test(cl), 'C3: validated finding is stamped class_id/unit_refs/asset_tag AFTER buildInterim (parity-safe)');
+ok(/integ\.coverage_complete === true \? 0/.test(cl), 'loop termination keys off the gate\'s coverage_complete, not an agent count');
+ok(/CHECK 8 attack-class coverage \(DETERMINISTIC/.test(cl) && !/coverage_ratio < 0\.80/.test(cl), 'check 8 is the hard coverage_gate.py gate; the 0.80 soft bar is gone');
+ok(/schema surface\/v2/.test(cl), 'coordinator-loop emits surface/v2 (bootstrap + THINK) so cells are enumerable');
+
+// CI registers the new deterministic-coverage + report tests and watches tools/**.
+ok(/python3 tools\/test_coverage_gate\.py/.test(ciYml) && /python3 tools\/test_validate_catalog\.py/.test(ciYml), 'CI runs the coverage-gate + catalog tests');
+ok(/python3 tools\/test_report_data_build\.py/.test(ciYml) && /python3 tools\/test_report_schema\.py/.test(ciYml), 'CI runs the report assembler + schema tests');
+ok(/'tools\/\*\*'/.test(ciYml), 'CI paths filter watches tools/** (so the new tools trigger the job)');
+
+// ---------------------------------------------------------------------------
+// Convergence-first depth (remove the cost-style budget) + honest cross-run resume
+// + E1/E2/E4 efficiency levers. The depth formulas are DELETED; completion is
+// coverage-convergence + a dry tail, backstopped by the per-asset agent slice.
+// ---------------------------------------------------------------------------
+// Negative locks: the three magic depth formulas are gone (a stray one would silently
+// re-cap depth / blow the 1000-agent kill limit).
+ok(!/loopBudgetBatches/.test(pe) && !/loopBudgetExperiments/.test(pe), 'WEB depth formula (loopBudget*) is deleted');
+ok(!/deepBudgetBatches/.test(pe) && !/deepBudgetExp/.test(pe), 'NETWORK deep-dive depth formula (deepBudget*) is deleted');
+ok(!/max_experiments: loopBudget/.test(pe) && !/max_batches: loopBudget/.test(pe) && !/max_experiments: deepBudget/.test(pe) && !/max_batches: deepBudget/.test(pe), 'derived max_experiments/max_batches are no longer passed into coordinator-loop');
+ok(!/userMaxExp/.test(pe), 'the dead userMaxExp bindings are removed (no ReferenceError)');
+
+// coordinator-loop: coverage-mode loop is convergence-bounded (agent slice + ceiling);
+// flag mode keeps the original budget-bounded loop.
+ok(/agentsSpawned < perAssetSlice && batch < ABSOLUTE_MAX_BATCHES/.test(cl), 'coverage loop head is the per-asset agent slice + absolute ceiling');
+ok(/exp < MAX_EXPERIMENTS && batch < MAX_BATCHES/.test(cl), 'flag-mode loop head is unchanged (htb-solve untouched)');
+ok(/const perAssetSlice = MODE === 'coverage' \? assetBudget\.perAsset/.test(cl), 'perAssetSlice derives from the (test-locked) assessBudget partition');
+ok(/assessBudget\(\{ assets: Number\(a\.assets\) \|\| 1, reserve: AGENT_RESERVE \}\)/.test(cl), 'assessBudget is called with the agent_reserve override');
+ok(/const done = MODE === 'coverage'\s*\?\s*convergenceDone\(/.test(cl), 'coverage completion is convergenceDone (not a bare pending===0 || goal_reached)');
+ok(/coverageDryStreak = nextDryStreak\(/.test(cl), 'the dry tail is advanced via nextDryStreak');
+ok(/const reopened = prevOpenCells != null && \[\.\.\.openSet\]\.some/.test(cl), 'reopen detection is a set-diff over the open-cell set (not a bare count)');
+ok(/INCOMPLETE_RESUMABLE/.test(cl) && /agent slice \(\$\{perAssetSlice\}\) exhausted/.test(cl), 'a slice-exhausted-with-open-cells exit is INCOMPLETE_RESUMABLE (resumable, not a gap)');
+ok(/DRY_TAIL = Number\(a\.dry_tail\)/.test(cl), 'dry_tail is a coordinator-loop arg');
+
+// pentest-engagement: convergence knobs threaded + honest cross-run resume (WEB + NETWORK).
+ok((pe.match(/dry_tail: dryTail/g) || []).length >= 2, 'dry_tail threaded into BOTH the web and network coverage loops');
+ok(/resumeSchedule\(\{ incompleteCount:/.test(pe), 'resumeSchedule picks the per-run asset slice; the rest defer');
+ok((pe.match(/classifyEngagement\(/g) || []).length >= 2, 'classifyEngagement derives the tri-state status (web + network)');
+ok(/label: 'resume-scan'/.test(pe) && /label: 'resume-scan-net'/.test(pe), 'a deterministic resume-scan runs coverage_gate.py per asset/host (web + network)');
+ok(/complete === true && Number\(r\.applicable\) > 0/.test(pe), 'resume-COMPLETE requires the gate boolean AND applicable>0 (no vacuous-complete skip)');
+ok(/input\.resume_dir/.test(pe) && /RESUME_DIR:/.test(pe), 'Setup reuses input.resume_dir to continue a prior engagement');
+ok(/max_resume_rounds/.test(pe), 'a resume-round churn guard caps endless retries of stuck assets');
+ok(/deep_asset_slice/.test(pe) && /const deepAssetSlice = /.test(pe), 'DEEP_ASSET_SLICE (per-asset agent budget) is configurable, default 200');
+
+// E1 tools-not-agents: the deterministic mechanical-class probe is wired into the loop.
+ok(/tools\/passive_web_probe\.py --asset-dir OUTPUT_DIR/.test(cl), 'E1: passive_web_probe.py runs at bootstrap to clear the mechanical attack-classes');
+ok(/RESUME-AWARE: if OUTPUT_DIR\/\$\{SURFACE_FILE\} AND OUTPUT_DIR\/coverage\.json BOTH already exist/.test(cl), 'coverage bootstrap is resume-aware (preserves the surface file/coverage.json, re-derives the backlog)');
+
+// E2 equivalence-class validation: gate credit + loop instruction + validator sampling.
+ok(/EQUIVALENCE \(E2\)/.test(cl) && /validate ONE representative/.test(cl), 'COVERAGE-BY-VALID instructs one representative per (class x equiv_group)');
+ok(/EQUIV SAMPLING \(E2 guard\)/.test(cl) && /K_SAMPLE=3/.test(cl), 'the blind engagement-validator samples equiv-credited cells (mis-group -> GAPS_FOUND)');
+ok(/"equiv_group":<null OR a short group id/.test(cl), 'the surface/v2 emitter carries a conservative equiv_group directive');
+ok(/AND a conservative equiv_group/.test(pe), 'the network app-bearing goal carries the equiv_group directive too');
+
+// E4 replay-cache: restore before the lane (resume), store after (populate).
+ok(/validation_cache\.py restore --finding-dir/.test(cl) && /validation_cache\.py store --cache-dir/.test(cl), 'E4: validateOneCandidate restores on a resume hit and stores every terminal verdict');
+ok(/const REPLAY_CACHE = !!a\.replay_cache/.test(cl) && /prompt-id \$\{CACHE_PROMPT_ID\}/.test(cl), 'E4 is asset-namespaced + resume-gated (no cross-asset replay)');
+ok((pe.match(/validation_cache_dir:/g) || []).length >= 2 && (pe.match(/replay_cache: !!setup\.resumed/g) || []).length >= 2, 'pentest-engagement threads the cache dir + resume-gated replay flag into both loops');
+
+// CI registers the new E1 probe test.
+ok(/python3 tools\/test_passive_web_probe\.py/.test(ciYml), 'CI runs the passive_web_probe test');
+
+// Password-protected deliverable: finalize also emits an AES-256 protected copy
+// (kept alongside the plaintext), with an auto-generated out-of-band password.
+ok(/tools\/protect_deliverable\.py --engagement-dir/.test(pe), 'finalize runs protect_deliverable.py for an AES-256 protected copy');
+ok(/const wantProtect = opts\.protect !== false/.test(pe), 'protection is default-ON with a protect:false kill-switch');
+ok((pe.match(/protect: input\.protect !== false/g) || []).length >= 3, 'the protect flag is threaded from ALL THREE (web, network, mobile) finalize calls');
+ok(/deliverable_password: \{ type/.test(pe) && /protected_zip: \{ type/.test(pe), 'FINALIZE_SCHEMA carries the protected artifacts + password');
+ok(/NEVER write the password VALUE into summary\.md/.test(pe), 'the runner is told to keep the password value out of the zipped summary');
+ok(/DELIVERABLE-PASSWORD\.txt/.test(pe), 'the password is surfaced via a root file excluded from the deliverable');
+ok(/python3 tools\/test_protect_deliverable\.py/.test(ciYml), 'CI runs the protect_deliverable test');
+
+// --- skill-update: the determinism contract -------------------------------
+// The whole point of converting the skill to a workflow is that no step can be
+// skipped and no LLM can decide the outcome. These assert exactly that.
+ok(/phase\('Intake'\)/.test(su) && /phase\('Verify'\)/.test(su), 'skill-update runs Intake and Verify');
+ok(su.indexOf("phase('Sweep')") > 0 && su.indexOf("phase('Sweep')") < su.indexOf("phase('Verify')"),
+   'the confidentiality Sweep runs BEFORE Verify');
+ok(su.indexOf("phase('Write')") < su.indexOf("phase('Sweep')"), 'Write precedes Sweep');
+ok(su.indexOf("phase('Judge')") < su.indexOf("phase('Route')"), 'Judge precedes Route');
+// The lint gate must be a DELTA gate: the tree carries pre-existing violations,
+// so an absolute clean-tree gate would block every run forever.
+ok(/skill_linter\.py --delta/.test(su) && /afterPayload\.regressed/.test(su),
+   'skill-update gates on the lint DELTA, not an absolute clean tree');
+ok(/--write-baseline/.test(su) && /stores the violation key set/.test(su),
+   'Intake stores a baseline key set rather than relaying the ~280 KB payload through an agent');
+ok(/baseline_ok/.test(su), 'a delta computed against a MISSING baseline fails closed');
+ok(/refusing to write without a delta baseline/.test(su), 'a missing baseline fails closed rather than writing blind');
+// Every decision is code, not an agent.
+ok(/promotionGate\(c, carry\.j, carry\.votes\)/.test(su), 'the promote/reject decision is made by promotionGate in pure JS');
+ok(/writeGate\(\{ \.\.\.a, target_path: target \}/.test(su), 'every authored block passes through writeGate before any write');
+ok(/skillUpdateGate\(\{/.test(su), 'the final COMPLETE/BLOCKED call is skillUpdateGate');
+// "Built in code" means no AGENT ever supplies the report: no schema exposes a
+// report_markdown field for one to fill. A JS template literal is still code.
+ok(/buildChangeReport\(/.test(su), 'the three-bucket report comes from buildChangeReport');
+ok(!/report_markdown: \{ type/.test(su),
+   'no agent schema exposes report_markdown — the report is never authored by an agent');
+// The confidentiality sweep is an independent veto that no agent can talk past.
+ok(/python3 scripts\/check_client_data\.py/.test(su), 'the Sweep phase runs the confidentiality guard');
+ok(/gate\.ok && !sweepClean/.test(su), 'a failed confidentiality sweep vetoes an otherwise-passing gate');
+ok(/Do NOT edit, create or delete ANY file to make this pass/.test(su),
+   'the sweep runner is forbidden from fixing its own failure');
+// The sweep runs the SAME guard as /content-guard, on the same flags, judged by
+// the same function. It ran bare once — no --redact (matched values reached the
+// transcript), no --require-denylist (the client-name lane could no-op and still
+// read clean) and no --json (nothing to check the agent's typed exit code against).
+ok(/guardCmd\(\{ mode: 'full'/.test(su), 'the sweep builds its command with the shared guardCmd');
+ok(/requireDenylist: REQUIRE_DENYLIST/.test(su),
+   'the sweep requires the client-name lane to have actually run');
+ok(/laneVerdict\(\[\{/.test(su) && /denylistLaneOk\(sweepPayload/.test(su),
+   'the sweep verdict is the shared pure-JS gate, not an agent-typed boolean');
+ok(/usablePayload\(sweep && sweep\.payload, 'content-guard-report\/v1'\)/.test(su),
+   'the sweep only trusts a payload of the shape it asked for');
+ok(!/sweep\.findings/.test(su),
+   'the sweep never relays raw finding lines — only leak_summary output reaches the report');
+// skill-update is invoked BY htb-solve via workflow(); nesting is one level only,
+// so calling the content-guard workflow here would throw after the writes.
+ok(!/workflow\(\s*['"{]/.test(su), 'skill-update calls no nested workflow (it is itself a workflow child)');
+// Role boundary + fail-closed agent calls.
+ok(/INVOKED_BY === 'coordinator'/.test(su), 'a coordinator invocation is blocked (orchestrator-only)');
+ok(!/verdict === 'clean'/.test(su), 'no code path lets an agent verdict clear a deterministic finding');
+ok((su.match(/\.catch\(\(\) =>/g) || []).length >= 5, 'every agent call fails closed via .catch');
+// Reverting must never destroy the operator's uncommitted work.
+ok(/!dirtyPaths\.has\(p\)/.test(su), 'revert skips paths that were already dirty at Intake');
+// Budget overflow is deferred and reported, never silently dropped.
+ok(/budget:deferred/.test(su), 'over-budget candidates are deferred with a stated reason, not dropped');
+// CI must actually run the new gates.
+ok(/syntax\.test\.mjs/.test(ciYml), 'CI runs the workflow syntax checker');
+ok(/test_skill_linter\.py/.test(readFileSync(join(wfDir, '..', '..', '.github', 'workflows', 'skill-lint.yml'), 'utf8')),
+   'CI runs the skill_linter --json contract test');
+
+
+// ---------------------------------------------------------------------------
+// content-guard + safe-pr: the publish gate.
+//
+// These assert the properties that make the gate a GATE rather than a habit —
+// things no unit test can see, because they are about ordering, about which
+// agent is constructed at all, and about what an agent is permitted to decide.
+// ---------------------------------------------------------------------------
+const cg = read('content-guard.js');
+const ps = read('safe-pr.js');
+const guardYml = readFileSync(join(wfDir, '..', '..', '.github', 'workflows', 'content-guards.yml'), 'utf8');
+
+// content-guard: deterministic by construction.
+ok(/--changed/.test(cg), 'content-guard runs the changed-scope scan');
+ok(/scanCmd\('changed'\)/.test(cg) && /scanCmd\('full'\)/.test(cg),
+   'content-guard runs BOTH the changed scan and the whole-tree backstop');
+ok(/--redact/.test(cg),
+   'content-guard always redacts — its output lands in an agent transcript');
+ok(/check_neutrality\.py/.test(cg) && /check_no_forks\.py/.test(cg),
+   'content-guard runs the neutrality and no-forks guards too');
+ok(!/[^a-zA-Z]new RegExp\(|AKIA|-----BEGIN/.test(cg),
+   'content-guard forks NO rule from the Python guard — no regex, no pattern, no allowlist');
+ok(/function laneVerdict\(/.test(cg) && /function usablePayload\(/.test(cg),
+   'the verdict is a pure JS function of the relayed facts');
+ok(/exit === 2/.test(cg) && /CONFIG_ERROR/.test(cg),
+   'exit 2 is a config error (scan not trustworthy), distinct from a finding');
+ok(/denylistLaneOk\(/.test(cg),
+   'a scan whose client-name lane never ran cannot be reported as clean');
+// The gate scaffold is shared with skill-update.js and pinned by parity.test.mjs,
+// so the two guards cannot drift on what counts as clean.
+ok(/function guardCmd\(/.test(cg) && /function guardCmd\(/.test(su),
+   'content-guard and skill-update build the guard command from the same function');
+ok(/function laneVerdict\(/.test(su),
+   'content-guard and skill-update reach a verdict with the same function');
+ok(/'content-guard\.js': \[\.\.\.GUARD\]/.test(read('lib/parity.test.mjs')),
+   'parity.test.mjs pins the shared gate scaffold in content-guard.js');
+ok(/headMismatch/.test(cg),
+   'two lanes disagreeing about HEAD blocks — no single state would have been certified');
+// The exit code the verdict reads is a number an AGENT typed. The tool's own JSON
+// says the same thing authoritatively. Trusting only the transcript would put a
+// model back in the finding path, which is the one thing this design forbids.
+ok(/l\.payload\.exit !== l\.exit/.test(cg),
+   "the relayed exit code is cross-checked against the tool's own JSON verdict");
+ok(/l\.payload\.counts\.findings > 0\) !== \(l\.exit !== 0\)/.test(cg),
+   'a payload listing findings alongside a clean exit code is a disagreement, not a pass');
+ok(!/clean: \{ type|status: \{ type|verdict: \{ type|report_markdown: \{ type/.test(cg),
+   'no agent schema in content-guard can express a verdict — agents are transport only');
+ok(/Do NOT edit, create or delete ANY file/.test(cg),
+   'the scan runner is forbidden from fixing its own failure');
+ok((cg.match(/\.catch\(\(\) =>/g) || []).length >= 3, 'every content-guard agent call fails closed');
+
+// safe-pr: the gate is structural — nothing that can publish exists on the blocked path.
+ok(/workflow\('content-guard'/.test(ps), 'safe-pr delegates the analysis to the standalone workflow');
+ok(ps.indexOf("workflow('content-guard'") < ps.indexOf('git push'),
+   'the guard runs before any push');
+ok(/guard\.clean !== true/.test(ps), 'safe-pr hard-gates strictly on the guard verdict');
+// Comments legitimately DESCRIBE the ordering, so compare positions in code only
+// — otherwise a comment mentioning phase('Plan') satisfies the assertion for free.
+const psCode = ps.replace(/^\s*\/\/[^\n]*$/gm, '');
+ok(psCode.indexOf('guard.clean !== true') < psCode.indexOf("phase('Plan')"),
+   'the gate returns BEFORE the Plan phase, so no publishing agent is ever constructed');
+ok(psCode.indexOf("phase('Guard')") < psCode.indexOf("phase('Commit')")
+   && psCode.indexOf("phase('Verify')") < psCode.indexOf("phase('Publish')"),
+   'phase order is Guard -> Plan -> Commit -> Verify -> Publish');
+// These tokens appear in safe-pr only to FORBID them to the agent. Assert exactly
+// that: every occurrence must sit on a line that prohibits it. A bare absence
+// check would be satisfied by deleting the prohibitions, which is backwards.
+for (const tok of ['--no-verify', '--force', 'git add -A', 'git add .', '--amend']) {
+  const lines = ps.split('\n').filter((l) => l.includes(tok));
+  const bad = lines.filter((l) => !/NEVER|never/.test(l));
+  ok(bad.length === 0,
+     `safe-pr mentions \`${tok}\` only to forbid it (offending line: ${(bad[0] || '').trim().slice(0, 70)})`);
+  ok(lines.length > 0, `safe-pr explicitly forbids \`${tok}\` to the agent`);
+}
+ok(/guard\.stageable_paths/.test(ps), 'safe-pr stages exactly the paths the guard certified');
+ok(/post\.tree_digest !== guard\.tree_digest/.test(ps),
+   'the push is bound to the digest the guard certified — content cannot change under it');
+// The body scan must be a CODE gate, not a sentence asking the agent to stop
+// itself: the scanning agent has no push/gh capability, and the publishing agent
+// is constructed only after JS has seen a clean scan.
+ok(/--scan-file/.test(ps), 'the PR and issue bodies are scanned before they are published');
+ok(/label: 'bodies'/.test(ps) && /label: 'publish'/.test(ps),
+   'writing+scanning the bodies is a separate agent from the one that pushes');
+ok(/bodies\.pr_body_exit !== 0 \|\| bodies\.issue_body_exit !== 0/.test(ps),
+   'a non-zero body scan blocks in code');
+ok(psCode.indexOf('bodies.pr_body_exit !== 0') < psCode.indexOf("label: 'publish'"),
+   'the body-scan gate returns BEFORE the publishing agent is constructed');
+ok(/required: \['ok', 'pr_body_exit', 'issue_body_exit'\]/.test(ps),
+   'both body-scan exit codes are REQUIRED fields — an omitted one cannot default to clean');
+ok(/PROTECTED\.includes\(branch\)/.test(ps), 'safe-pr refuses to commit to main/master');
+ok(/validCommitSubject/.test(ps) && /subjectLeak/.test(ps),
+   'the commit subject is validated in code for convention AND for leakage');
+ok(/Closes #/.test(ps), 'the PR body links an issue, per the repo template');
+ok(!/report_markdown: \{ type/.test(ps), 'the safe-pr report is never authored by an agent');
+ok((ps.match(/\.catch\(\(\) =>/g) || []).length >= 3, 'every safe-pr agent call fails closed');
+
+// A BLOCKED report must describe the state the run actually REACHED. The constant
+// sentence may exist exactly once — as the nothing-happened branch of the function
+// that derives it — because a second copy is how a late failure (the PR step) came
+// to deny a push that had already succeeded, hiding public bytes from the reader.
+ok((ps.match(/Nothing was committed, pushed or published/g) || []).length === 1,
+   'the "nothing happened" sentence exists once, inside the function that derives it');
+ok(/function stateSentence/.test(ps) && /\$\{stateSentence\(state\)\}/.test(ps),
+   'blocked() derives its closing sentence from state instead of asserting a constant');
+ok(/if \(pushed\) return/.test(ps),
+   'a block raised after a successful push reports that the commit is already public');
+
+// Push and PR-open are distinct observable outcomes; one must not be able to erase
+// the other. `gh pr create` refusing because the branch already has an open PR is
+// the success path — the push put the certified commit into that PR.
+ok(/required: \['ok', 'pushed', 'pr_create_exit'\]/.test(ps),
+   'push and PR-create outcomes are REQUIRED and reported separately');
+ok(/const prExisted = publish\.pr_create_exit !== 0/.test(ps),
+   'an already-open PR is classified in code, never by the agent');
+ok(psCode.indexOf('!publish.pushed') < psCode.indexOf('const prUrl'),
+   'the push verdict is settled before the PR verdict, so a PR failure cannot revoke it');
+ok(/gh pr view/.test(ps) && psCode.indexOf('gh pr create') < psCode.indexOf('gh pr view'),
+   'the PR is resolved after the create attempt, whether or not that attempt succeeded');
+ok(!/gh pr edit/.test(ps),
+   'safe-pr never overwrites an existing PR title or description — authored text is not force-pushed');
+
+// CI must enforce the changed-scope gate server-side, and redact its public log.
+ok(/check_client_data\.py --changed/.test(guardYml),
+   'CI runs the changed-scope scan on pull requests');
+ok(/--redact/.test(guardYml), 'CI redacts — an Actions log on a public repo is public');
+
+// ---------------------------------------------------------------------------
+// MOBILE mode: three-way dispatch, TWO gated surfaces, device-gated DAST.
+// The motivating failure was a MAPT that ran outside the coverage machinery
+// entirely and under-tested the backend the app talks to. These assert the
+// structure that makes both halves impossible to skip.
+// ---------------------------------------------------------------------------
+ok(/enum: \['web', 'network', 'mobile'\]/.test(pe), "SETUP_SCHEMA.engagement_kind admits 'mobile' (a strict enum would reject the structured output otherwise)");
+ok(/const KIND = \['network', 'mobile'\]\.includes\(setup\.engagement_kind\) \? setup\.engagement_kind : 'web'/.test(pe), "KIND is a three-way WHITELIST — an unknown or absent kind still falls back to web");
+ok(/if \(KIND === 'mobile'\)/.test(pe), 'a self-contained MOBILE branch exists');
+{ // the branch must precede the WEB fallthrough (which has no `else`) and return internally
+  const mobIdx = pe.indexOf("if (KIND === 'mobile')");
+  const webIdx = pe.indexOf("// WEB MODE (engagement_kind !== 'network')");
+  ok(mobIdx > 0 && webIdx > 0 && mobIdx < webIdx, 'the MOBILE branch sits before the WEB fallthrough');
+  const seg = pe.slice(mobIdx, webIdx);
+  ok(seg.includes("status: 'DONE'") && seg.includes("status: 'DRY_RUN'") && seg.includes("status: 'BLOCKED'"),
+     'the MOBILE branch returns internally on every path (DONE + DRY_RUN + BLOCKED) — a fallthrough would CT-log-enumerate an APK');
+}
+ok((pe.match(/engagement_kind: 'mobile'/g) || []).length >= 2, 'the mobile returns stamp engagement_kind');
+ok(/\.apk\/\.aab\/\.xapk\/\.apks\/\.ipa/.test(pe), 'the Setup classifier keys mobile off an ARTIFACT/store-id/package-id, not off the absence of a domain');
+ok(/FIRST MATCH WINS/.test(pe), 'the kind classifier is an ordered first-match test (mobile before network before web)');
+
+// TWO gated surfaces — the app bundle AND the backend recovered from it.
+ok(/recon\/inventory\/mobile-surface\.json/.test(pe), 'MOBILE emits the app-bundle MASVS surface');
+ok(/tools\/mobile_surface_build\.py/.test(pe), 'both surfaces are written by the shared deterministic tool, not an engagement-local script');
+ok(/tools\/mobile_manifest_facts\.py/.test(pe), 'manifest/Info.plist facts are extracted by code, not authored by the agent');
+ok(/const mobSurfaceOk = mobApps\.length > 0/.test(pe), 'mobSurfaceOk guards on mobApps.length — [].every() is vacuously true');
+ok(/apiAssets\.length > 0 && apiAssets\.every\(a => Number\(a\.units\) > 0\)/.test(pe), 'zero recovered backend endpoints is a FAILED acquisition, not a small surface');
+ok(/INCOMPLETE_sast/.test(pe), 'an unemitted surface can never reach COMPLETE');
+ok(/platform: 'mobile'/.test(pe) && (pe.match(/platform: 'web'/g) || []).length >= 2, "the app loop runs platform:'mobile' and the RECOVERED backend loop platform:'web'");
+ok(/skills_hint: 'mobile-security/.test(pe) && /skills_hint: 'api-security/.test(pe), 'the two mobile lanes mount different skill sets (MASVS vs API)');
+ok(/SYSTEMATICALLY UNDER-TESTED/.test(pe), 'the recovered-backend goal names why that surface is under-tested (not browser-reachable)');
+ok(/--allow /.test(pe), 'the recovered-backend allow-list is passed explicitly (a bundle string never steers out-of-scope testing)');
+
+// DAST is device-gated; a deferral must be MACHINE-substantiated, never a flag.
+ok(/tools\/mobile_device_check\.py/.test(pe), 'the Device phase runs the mobile_device_check preflight');
+ok(/INCOMPLETE_dast/.test(pe), 'an unresolved DAST obstruction is its own incomplete status (the mobile analogue of INCOMPLETE_scan)');
+// no operator INPUT may skip DAST (the prose comment saying so is allowed to
+// mention the names — what must not exist is a read of one)
+ok(!/input\.(skip_dast|static_only|no_dast|skip_device)/.test(pe), 'there is NO operator flag that skips DAST — the only way past the gate is a device or a substantiated obstruction');
+ok(/deliberately NO skip_dast/.test(pe), 'the absence of a DAST kill-switch is documented at the knob block, so it is not "re-added as a convenience" later');
+ok(/ready = \(exit code 0\) and NOTHING ELSE/.test(pe), 'only exit 0 counts as ready — DEGRADED (incl. every iOS Simulator) routes to the obstruction path');
+{ // the deferral may only be constructed AFTER the machine evidence exists
+  const oIdx = pe.indexOf('recon/dast/obstruction.json');
+  const dIdx = pe.indexOf('dastDeferral = {');
+  ok(oIdx > 0 && dIdx > 0 && oIdx < dIdx, 'the machine obstruction record is written BEFORE any deferral is constructed');
+}
+ok(/obst\.obstructed === true && obst\.obstruction_path && obst\.cir_path/.test(pe), 'JS requires BOTH the obstruction record and the CIR before a deferral exists');
+ok(/RELATIVE TO THE ASSET DIR/.test(pe), 'the obstruction agent is told the CIR path is asset-dir-relative (coverage_gate resolves it against asset_dir)');
+ok(/proof_mode:static cells are NOT deferrable/.test(pe), 'the app loop is told static cells cannot be device-deferred');
+ok(/phase\('Acquire'\)/.test(pe) && /phase\('Device'\)/.test(pe), 'MOBILE runs the Acquire + Device phases');
+{ // a phase() title absent from meta.phases does not group in the progress UI
+  const emitted = [...new Set([...pe.matchAll(/phase\('([A-Za-z]+)'\)/g)].map((m) => m[1]))];
+  const declared = [...pe.matchAll(/\{ title: '([A-Za-z]+)'/g)].map((m) => m[1]);
+  const undeclared = emitted.filter((t) => !declared.includes(t));
+  ok(undeclared.length === 0, `every phase() title is declared in meta.phases (undeclared: ${undeclared.join(',') || 'none'})`);
+}
+
+// coordinator-loop must not manufacture a WEB surface for an app bundle.
+ok(/const SURFACE_FILE = a\.surface_file/.test(cl), 'coordinator-loop takes a surface_file override');
+ok(/const IS_MOBILE_SURFACE = /.test(cl), 'the loop branches on the surface SCHEMA, not just the filename');
+ok(/surface_file: 'recon\/inventory\/mobile-surface\.json'/.test(pe), 'the app loop overrides the surface file so bootstrap does not enumerate a web surface for an APK');
+ok(/passive_web_probe\.py is an HTTP tool and must NOT be run against an app bundle/.test(cl), 'the mobile bootstrap forbids the passive HTTP probe (it would fabricate covered_negative cells)');
+ok(/CANNOT be closed from the artifact/.test(cl), 'THINK is told a [runtime] cell needs a device-bearing mission');
+
+// the mobile tools are CI-enforced like every other tool in tools/
+ok(/python3 tools\/test_mobile_surface_build\.py/.test(ciYml), 'CI runs the mobile surface-builder test');
+ok(/python3 tools\/test_mobile_device_check\.py/.test(ciYml), 'CI runs the device-check test');
+ok(/python3 tools\/test_mobile_manifest_facts\.py/.test(ciYml), 'CI runs the manifest-facts test');
+
+console.log(`\nwiring: ${pass} passed, ${fail} failed`);
+if (fail) { console.log('\n' + fails.join('\n')); process.exit(1); }

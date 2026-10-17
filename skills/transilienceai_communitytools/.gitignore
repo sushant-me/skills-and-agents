@@ -1,0 +1,221 @@
+# Claude Code Pentest Framework - Git Ignore
+
+# Test outputs (exclude ALL test results and sensitive data from public repo)
+**/outputs
+**/reports
+**.designspace
+**.rec
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Screenshots and evidence (sensitive)
+screenshots/
+evidence/
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Raw data and results
+raw/
+*.csv
+*.txt
+
+# Office documents. A client deliverable is far likelier to arrive as a workbook
+# or a report document than as prose, and no text lane can read one — the content
+# guard can only hash-pin binaries, never inspect them. Extension rules only, and
+# no office document is tracked today, so this is not a retroactive change.
+*.xlsx
+*.xls
+*.docx
+*.doc
+*.pptx
+
+# Benchmark runner artifacts (per-run workdirs, logs, result JSON)
+benchmarks/xbow/results/
+benchmarks/cybench/results/
+benchmarks/bountybench/results/
+
+# JSON data files (but NOT plugin manifests)
+*.json
+!.claude-plugin/plugin.json
+!.claude-plugin/marketplace.json
+!plugins/**/.claude-plugin/plugin.json
+!mcp/**/*.json
+# Skill compliance catalogs are source-of-truth data, not engagement output — keep them tracked.
+# Both forms: reference/catalog/ and a catalog/ nested deeper (e.g. reference/posture/catalog/).
+# The adjacency-only pattern silently excluded the latter, which is how a catalogue can validate
+# locally and be absent from CI — the same *.json trap that already hid coverage-matrix.json,
+# report-data-schema.json and example-report-data.json. tools/test_tracked_assets.py now fails
+# on any such file so the next one is caught by a test rather than by a red pipeline.
+!skills/**/reference/catalog/*.json
+!skills/**/catalog/*.json
+# The attack-class coverage catalog is the MACHINE source of truth for the whole
+# coverage gate (enumerate_cells / coverage_gate / validate_catalog all load it) and
+# the report-data schema is the contract generate_report.py renders against. Both sat
+# under the blanket *.json rule, so neither was tracked: a fresh checkout had no
+# catalog, `validate_catalog.py` could not run in CI, and the CI paths: filter that
+# names coverage-matrix.json could never fire on a file git did not know about.
+!skills/coordination/reference/coverage-matrix.json
+!skills/transilience-report-style/reference/report-data-schema.json
+# The example report_data is the third file in that same trap: SKILL.md links it twice
+# as the worked reference, and test_report_schema.py reads it. Untracked, both link
+# checks and two schema tests pass locally (the file is on the author's disk) and fail
+# on a fresh checkout — which is exactly how it reached CI red.
+!skills/transilience-report-style/reference/example-report-data.json
+# PCI SSS catalog build config (deterministic, auditable) — keep tracked
+!tools/pci-sss/*.json
+# Content-guard binary pins. MUST stay tracked: without this file the guard cannot
+# certify any binary and fails closed everywhere it runs, CI included.
+!scripts/content-guard-*.json
+# CERT-In Audit Metadata export — pinned vocabulary + intermediate-JSON schema are
+# committed source-of-truth assets the builder resolves at this path (fresh checkout / CI).
+!formats/certin-audit-metadata/enums.json
+!formats/certin-audit-metadata/certin-metadata-schema.json
+# The CERT-In master workbook is a third-party document distributed under TLP:AMBER.
+# It is not redistributed here — obtain it from CERT-In and point the builder at it
+# with --template or CERTIN_TEMPLATE.
+formats/certin-audit-metadata/*.xlsx
+
+# Third-party benchmark and standard documents. CIS Benchmark Terms of Use state it is
+# NEVER acceptable to host a CIS Benchmark in ANY format on a non-CIS site, and that even
+# using portions of a Recommendation in third-party documentation needs CIS Legal's
+# written guidance. Our catalogues therefore carry control NUMBERS + our own procedure
+# text (see skills/cloud-containers/reference/posture/INDEX.md), never the source document.
+# Fails closed: PDFs are ignored by default, with existing tracked papers allowlisted.
+*.pdf
+!papers/practice-makes-perfect.pdf
+
+# Credentials and secrets
+credentials.json
+config.json
+.env
+.env.local
+secrets/
+tokens/
+.credentials
+*.credentials
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+
+**/.playwright-mcp
+
+# Local engagement state (active-engagement pointer + orphan activity log) — never commit
+.claude/state/
+
+# The broad Python `lib/` ignore (above) also catches the workflow helper
+# source-of-truth + its parity/wiring/unit tests. Track them so CI can run them
+# (pentest-engagement.js etc. embed inline copies guarded by parity.test.mjs).
+!.claude/workflows/lib/
+!.claude/workflows/lib/**
+
+**/projects/ctf/
+!**/projects/ctf/CLAUDE.md
+!**/projects/ctf/.claude
+# --- Content hygiene ---
+# Claude Code per-machine state: session UUIDs, PIDs, absolute paths, local tokens
+**/.claude/settings.local.json
+**/.claude/scheduled_tasks.lock
+**/.DS_Store
+# Credential / ticket material that must never be committed
+*.ccache
+*.kirbi
+*.keytab
+*.jar
+*.pem
+*.p12
+*.pfx
+# VPN profiles (often carry an inline <key> block) and cert/key material an
+# engagement or a capture proxy produces. Extension rules only — a directory rule
+# on projects/pentest/ would untrack real content. scripts/check_client_data.py
+# fails the build if one of these is tracked or staged anyway.
+*.ovpn
+*.crt
+*.cer
+*.der
+*.key
+*.jks
+# Dated engagement output dirs must never sit outside an ignored engagement tree
+[0-9][0-9][0-9][0-9][0-9][0-9]_*/
+[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_*/
+# Client scope documents
+**/*-scope.md
+!skills/**/*-scope.md
+
+# Digest-only denylist consumed by scripts/check_client_data.py
+# (generated by scripts/gen_denylist.py).
+scripts/client-denylist.sha256
+
+# Internal pre-implementation review notes stay local.
+docs/plans/*-reviewed.md
+
+# Asset symlinks are generated per clone by projects/*/scripts/link-pentest-assets.sh
+# and are machine-specific; they are not tracked.
+projects/*/.claude/skills/*
+projects/*/.claude/formats
+projects/*/.claude/tools/*
+projects/*/tools/*.py

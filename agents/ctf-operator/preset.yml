@@ -1,0 +1,28 @@
+name: CTF Operator
+description: >-
+  A coding agent for capture-the-flag work. Fourteen CTF skills cover rules and
+  eligibility, event workflow, platform operations (submission budgets,
+  lockouts, credibility), crypto, web, pwn/reversing, forensics/stego/OSINT,
+  recon and infrastructure tracing, a technique index distilled from real
+  writeups, and a board-specific playbook for NullOrigin CTF and any board by
+  the same author (chained stage keys, the PL8 container, the decoy taxonomy,
+  the elimination procedure, and the collection discipline the metas require).
+  Four skills were added from a full finals run: ctf-register-family (boards
+  whose answer is a selection — a register of near-identical flags plus the
+  documented integer that picks the in-force row), ctf-finals-ops (dynamic
+  value decay, paid-hint economics, terminal attempt locks, cross-account
+  attempt budgets, evidence capture and score reconciliation), ctf-fanout
+  (bounded scout / solver / verifier / scribe agents and a parallel board-triage
+  workflow), and ctf-writeup-production (the markdown-to-PDF report pipeline and
+  the proof images that must be captured while the board is live).
+  Eight scripts travel with it: ctfsub.py (submission client with a hard
+  attempt ledger and a verification gate), ctfpreflight.py (toolchain
+  readiness), ctfrehearsal.py (proves the playbook actually executes on this
+  machine, including the NullOrigin container and key schedule),
+  ctfnulltriage.py (screens a candidate flag for homoglyph prefixes, works-entry
+  backing, already-held flags and documented decoys before it reaches a
+  submitter; its --scan sweep also finds every valid works entry across a whole
+  downloaded board and harvests the six mordant shares, refusing the poisoned
+  seventh), ctfctfd.py and ctfctfd_mock.py (platform client and its local
+  mock), ctfdrill.py, and ctfready.py — plus tools/writeup-pipeline/
+  (md2html.py, print.mjs, mkpdf.sh, shot.mjs) for producing the report PDF.
