@@ -126,14 +126,27 @@ def preset_entries() -> list[dict]:
 
 
 def agent_definitions() -> list[dict]:
-    adir = os.path.join(AGENTS, "opencodex")
-    if not os.path.isdir(adir):
-        return []
-    return [
-        {"path": os.path.relpath(os.path.join(adir, f), REPO),
-         "sha256": sha256_file(os.path.join(adir, f))}
-        for f in sorted(os.listdir(adir)) if f.endswith(".md") and f != "README.md"
-    ]
+    """Claude Code (opencodex-generated) and opencode agent definition files."""
+    out = []
+    for group in ("opencodex", "opencode"):
+        adir = os.path.join(AGENTS, group)
+        if not os.path.isdir(adir):
+            continue
+        for f in sorted(os.listdir(adir)):
+            if not f.endswith(".md") or f == "README.md":
+                continue
+            out.append({"group": group,
+                        "path": os.path.relpath(os.path.join(adir, f), REPO),
+                        "sha256": sha256_file(os.path.join(adir, f))})
+    return out
+
+
+def agent_prompts() -> list[dict]:
+    out = []
+    p = os.path.join(AGENTS, "hunt_prompt.md")
+    if os.path.isfile(p):
+        out.append({"path": os.path.relpath(p, REPO), "sha256": sha256_file(p)})
+    return out
 
 
 def collections(skills: list[dict]) -> list[dict]:
@@ -153,6 +166,7 @@ def main() -> int:
     skills = skill_entries()
     presets = preset_entries()
     defs = agent_definitions()
+    prompts = agent_prompts()
     names = [s["name"] for s in skills]
     collisions = {
         n: sorted(p for p in (s["path"] for s in skills) if os.path.basename(os.path.dirname(p)) == n)
@@ -168,12 +182,14 @@ def main() -> int:
                 ("custom", "unattributed", "local-authored", "cloudflare", "agents"))),
             "presets": len(presets),
             "agent_definitions": len(defs),
+            "agent_prompts": len(prompts),
             "collections": len(collections(skills)),
         },
         "collections": collections(skills),
         "skills": skills,
         "presets": presets,
         "agent_definitions": defs,
+        "agent_prompts": prompts,
         "aliases": ALIASES,
         "name_collisions": collisions,
     }
@@ -181,7 +197,7 @@ def main() -> int:
         json.dump(manifest, fh, indent=1, sort_keys=False)
         fh.write("\n")
     print(f"wrote {MANIFEST}: {len(skills)} skill dirs, {len(presets)} presets, "
-          f"{len(defs)} agent definitions")
+          f"{len(defs)} agent definitions, {len(prompts)} prompt(s)")
     return 0
 
 

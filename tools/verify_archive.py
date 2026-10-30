@@ -9,14 +9,16 @@ Checks, in order:
   4. Every skill installed in the live catalog (~/.agents/skills) is represented
      in the archive, either by name or through a recorded upstream alias.
   5. Every live agent preset (~/.dsh/.agent-presets/*) is archived file-for-file.
-  6. Every live Claude Code subagent definition (~/.claude/agents/*.md) is
-     archived byte-for-byte.
+  6. Every live Claude Code subagent definition (~/.claude/agents/*.md) and every
+     opencode agent definition (~/.config/opencode/agent/*.md) is archived
+     byte-for-byte, as is the bughunter round prompt.
 
 Checks 4-6 are skipped with a warning when the live paths are absent (for
 example on a fresh clone on another machine); checks 1-3 always run.
 
 Usage:
-    python3 tools/verify_archive.py [--catalog DIR] [--presets DIR] [--claude-agents DIR]
+    python3 tools/verify_archive.py [--catalog DIR] [--presets DIR]
+        [--claude-agents DIR] [--opencode-agents DIR]
 Exit code 0 = PASS, 1 = FAIL.
 """
 
@@ -37,6 +39,7 @@ AGENTS = os.path.join(REPO, "agents")
 DEFAULT_CATALOG = os.path.expanduser("~/.agents/skills")
 DEFAULT_PRESETS = os.path.expanduser("~/.dsh/.agent-presets")
 DEFAULT_CLAUDE_AGENTS = os.path.expanduser("~/.claude/agents")
+DEFAULT_OPENCODE_AGENTS = os.path.expanduser("~/.config/opencode/agent")
 
 JUNK = ("__pycache__", ".git", ".pytest_cache")
 
@@ -217,22 +220,40 @@ def check_presets(rep: Report, presets: str, manifest: dict) -> None:
         rep.info(f"all {len(live)} agent preset(s) archived file-for-file")
 
 
-def check_agent_definitions(rep: Report, claude_agents: str, manifest: dict) -> None:
-    if not os.path.isdir(claude_agents):
-        rep.warn(f"live Claude agents absent ({claude_agents}) - check skipped")
+def check_agent_group(rep: Report, label: str, live_dir: str, group: str,
+                      manifest: dict) -> None:
+    if not os.path.isdir(live_dir):
+        rep.warn(f"live {label} agents absent ({live_dir}) - check skipped")
         return
     arch = {os.path.basename(d["path"]): d["sha256"]
-            for d in manifest.get("agent_definitions", [])}
-    live = [f for f in sorted(os.listdir(claude_agents)) if f.endswith(".md")]
+            for d in manifest.get("agent_definitions", [])
+            if d.get("group", "opencodex") == group}
+    live = [f for f in sorted(os.listdir(live_dir)) if f.endswith(".md")]
     missing = [f for f in live if f not in arch]
     if missing:
-        rep.fail(f"Claude subagent definition(s) not archived: {missing}")
+        rep.fail(f"{label} agent definition(s) not archived: {missing}")
     changed = [f for f in live if f in arch
-               and arch[f] != sha256_file(os.path.join(claude_agents, f))]
+               and arch[f] != sha256_file(os.path.join(live_dir, f))]
     if changed:
-        rep.fail(f"archived subagent definition differs: {changed}")
+        rep.fail(f"archived {label} agent definition differs: {changed}")
     if not missing and not changed:
-        rep.info(f"all {len(live)} Claude subagent definition(s) archived byte-for-byte")
+        rep.info(f"all {len(live)} {label} agent definition(s) archived byte-for-byte")
+
+
+def check_agent_prompts(rep: Report, manifest: dict) -> None:
+    live = os.path.expanduser("~/Work/bughunter/agent/hunt_prompt.md")
+    arch = {os.path.basename(d["path"]): d["sha256"]
+            for d in manifest.get("agent_prompts", [])}
+    if not os.path.isfile(live):
+        rep.warn(f"live hunt prompt absent ({live}) - check skipped")
+        return
+    name = os.path.basename(live)
+    if name not in arch:
+        rep.fail(f"agent prompt not archived: {name}")
+    elif arch[name] != sha256_file(live):
+        rep.fail(f"archived agent prompt differs: {name}")
+    else:
+        rep.info(f"agent prompt archived byte-for-byte: {name}")
 
 
 def main() -> int:
@@ -240,6 +261,7 @@ def main() -> int:
     ap.add_argument("--catalog", default=DEFAULT_CATALOG)
     ap.add_argument("--presets", default=DEFAULT_PRESETS)
     ap.add_argument("--claude-agents", default=DEFAULT_CLAUDE_AGENTS)
+    ap.add_argument("--opencode-agents", default=DEFAULT_OPENCODE_AGENTS)
     args = ap.parse_args()
 
     rep = Report()
@@ -248,14 +270,17 @@ def main() -> int:
         check_duplicates(rep, manifest)
         check_catalog(rep, args.catalog, manifest)
         check_presets(rep, args.presets, manifest)
-        check_agent_definitions(rep, args.claude_agents, manifest)
+        check_agent_group(rep, "Claude Code", args.claude_agents, "opencodex", manifest)
+        check_agent_group(rep, "opencode", args.opencode_agents, "opencode", manifest)
+        check_agent_prompts(rep, manifest)
 
     print(f"archive: {REPO}")
     if manifest:
         c = manifest.get("counts", {})
         print(f"  skills: {c.get('skill_dirs')} dirs / {c.get('skill_names_unique')} names / "
               f"{c.get('vendored_skills')} vendored | presets: {c.get('presets')} | "
-              f"agent definitions: {c.get('agent_definitions')}")
+              f"agent definitions: {c.get('agent_definitions')} | "
+              f"agent prompts: {c.get('agent_prompts')}")
     for line in rep.infos:
         print(f"  OK   {line}")
     for line in rep.warnings:

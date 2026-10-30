@@ -1,12 +1,13 @@
 {
  "schema": 1,
- "generated_at": "2026-10-30T10:26:53+00:00",
+ "generated_at": "2026-10-30T10:30:42+00:00",
  "counts": {
   "skill_dirs": 1450,
   "skill_names_unique": 1447,
   "vendored_skills": 1138,
   "presets": 2,
-  "agent_definitions": 5,
+  "agent_definitions": 73,
+  "agent_prompts": 1,
   "collections": 14
  },
  "collections": [
@@ -8989,24 +8990,375 @@
  ],
  "agent_definitions": [
   {
+   "group": "opencodex",
    "path": "agents/opencodex/ocx-gpt-5-5.md",
    "sha256": "21961eb516fe40cd6e14c8c421dc08b8158e388355859002bac4c968641f0929"
   },
   {
+   "group": "opencodex",
    "path": "agents/opencodex/ocx-gpt-5-6-luna.md",
    "sha256": "9b8a0009448ab27dfca69974c66e38c61ef87579a262eccad97fc0925f2a5cee"
   },
   {
+   "group": "opencodex",
    "path": "agents/opencodex/ocx-gpt-5-6-sol.md",
    "sha256": "048961abd4ed34b5910015769bf896ab2b9e986d3c66d6c35e8cecdde42f0bd9"
   },
   {
+   "group": "opencodex",
    "path": "agents/opencodex/ocx-gpt-5-6-terra.md",
    "sha256": "831f5ae17d7a1390371bcd0ff3c52799be4ebb4fea9da58eba8e0227eebcb719"
   },
   {
+   "group": "opencodex",
    "path": "agents/opencodex/ocx-gpt-6-astra.md",
    "sha256": "39b1ea8fda6c747bb9b64aa46465d5ef87b1b968dd6d32ba4fa1ff5eb3c6c943"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/ai-hunter.md",
+   "sha256": "cf07f692aaeb422aff9384eff66c1148174c9ccd5c8e17fc54dee3dfc46193d9"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/api-hunter.md",
+   "sha256": "e83605f4f0e310fb54b053c425a53e3d34484aacca31e6bcbbf1774722b052ac"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/auth-tester.md",
+   "sha256": "7746d593945cfba61ba88ae63d06b54d4c428853f2a1ca5adc8f900fb632a46c"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/brain.md",
+   "sha256": "404724ed29f9becf2c3c6b21a8aac89421d40a1fbfdaec1b9981243284904285"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/browser-agent.md",
+   "sha256": "59120c33a9d376d1134a248c1f712ee5dd06fbbdec6a570c78fdc95b5bd9cc1b"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/browser-stealth-agent.md",
+   "sha256": "a05b2418df082b7909695e08da4dd73ce908dd4a87d5f90a4508f3cd20c2bdc6"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/browser-verifier.md",
+   "sha256": "7e15980bedc5a2d609714b98233ed8947347549874f55d160b5323a54982983d"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/bughunter-autopilot.md",
+   "sha256": "78da65190ff4f8abdb434993f9a6038c140082f24f687aad9ecf08b81b248571"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/business-logic.md",
+   "sha256": "b4bd931c0ff9c3535eeecb19cf8e979151ab24455b0e14e2d7f40564615c2163"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/chain-builder.md",
+   "sha256": "1555fdc3ef7ce983153e524b15e4065b2bb03ec15d2521e4a3775c00bacff512"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/cloud-hunter.md",
+   "sha256": "4a97b170b1b856988a731a7b74da03ee184a748c5dba376b073d6d097545ed8a"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/cloud-recon.md",
+   "sha256": "1692afa98db0ce1cb4d64520634e08063be73a97ccd3e490780cdf1699b78819"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/config-auditor.md",
+   "sha256": "defc3b2962570068d037319fdbaed4b001f42a1135c039249d08df3b074b8ebd"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/correlator.md",
+   "sha256": "7b0a176ef41efca5150c2cb915465447a7609849a8b3128599bbb3de179fcc2f"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/cors-hunter.md",
+   "sha256": "f8797c5591cb006998a6f02e94373e3cd5e1826f073bc6a4d45f01e2ad36c476"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/crypto-hunter.md",
+   "sha256": "b402549274f9ce10c8aaa017bd4466bbdc56250ff5c08cc80c6123b9c3e1069d"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/csrf-hunter.md",
+   "sha256": "4d252b63e8a427b6e30779c84d30ec5299e4c80a4318bf169d8138aeef9df630"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/dast-devils-advocate.md",
+   "sha256": "1eb50b18fb6f37a5df4b5616d822998e8cb8a0783a3a54a2b38db307f4478f0a"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/exploit-builder.md",
+   "sha256": "d4d74d26cf6d47940406c9ae0f864d90dbd213b0644543ed80147599b438365c"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/file-upload.md",
+   "sha256": "a928b09cbe30a6ae7228b8cf533526403f1fa7c60cc5b2374eba4aa4466af9dc"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/forensics-hunter.md",
+   "sha256": "6bec0b0d8472d9486c13703602c71ecee48057bc651adf30f1fd1c9ad92c0c75"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/graphql-audit.md",
+   "sha256": "b621941284cccc137045570512d6300654121fc548ea6f7453ed84b57a24e266"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/idor-hunter.md",
+   "sha256": "3c8fb62638a821c94d91154658a7a378652b2143a42364c06f580e5a60aaa18f"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/info-disclosure.md",
+   "sha256": "48d641d5a7d5f5d139025bdddb8d5b12e3aee57d57274a820139bdb1a41f9873"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/js-analyzer.md",
+   "sha256": "2b458df7f1719168be987e47139e367ab61d37f91dfa28631ec28af672f7f9ea"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/llm-ai-hunter.md",
+   "sha256": "179cef8e613e41bc0c95aea5e1c5d5e7a006fd670787336bcc8e8fa2d1be80a6"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/mobile-hunter.md",
+   "sha256": "3616654514929de64fa335244e43581cf1c6e87449e7e8d9c83c1a4a56150e29"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/monitor.md",
+   "sha256": "acb9582eef4666a0ede3883d060f556fa0c691a7fa99073f6c0891147be1b7e7"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/network-hunter.md",
+   "sha256": "e0fd33b869f07c6620eb0755b59a42e58f2f9ab2561b1c7df5113a0696519f87"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/nuclei-writer.md",
+   "sha256": "e40132ea92ddca8e09a9dbbc133b2b9bbf484294650c9bfb556bc1f4795447fa"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/oauth-hunter.md",
+   "sha256": "0622a9a72511708696222f3fc3831472a6be0496a25209479030d9e5f88e0116"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/open-redirect.md",
+   "sha256": "228d632e2eefbe9029d7d7b4755b32f8a79d2774a665e167c5fe9920767f05ae"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/poc-builder.md",
+   "sha256": "562fa779f8f9f9bfcc1bc80329d5797a5df3c02df1fa03018e6935380977cba7"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/portswigger-lab-solver.md",
+   "sha256": "f3505e62dfca4e3565edd2189c2815e9d71e1ce51cc1e07961e1bc7423a4d4b0"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/privilege-escalation.md",
+   "sha256": "8e1c331624a1e4b210090b3419fea75d1b40e6e38593230424d5a142f96b4713"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/quality-check.md",
+   "sha256": "b2d5e8feaf6ca9e7cf00430579fd5e7c4befd88637e650a93fd3f9930d3dfe05"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/race-condition.md",
+   "sha256": "7219de853e09b991ad2dc58f488689509a92aff96a1e52325dc502aca6971251"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/rce-hunter.md",
+   "sha256": "efcad834a4c0a1534d4762fcd5528e4e08c25761203405df7095f04a07483d77"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/recon-deep.md",
+   "sha256": "e134ad821054900b43f55d1d073d6886c634e3b5f4cf0402fa542872c88f06d9"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/recon-ranker.md",
+   "sha256": "284c5b4eeeaf244b9135f672bde71fd0a04890909266b9935b6f18d193a698a9"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/recon.md",
+   "sha256": "052c3e1e26cdeced1f63d7a383743d089078021c8b36d1d666ac2253a132dce6"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/report-writer.md",
+   "sha256": "6ba0eb2030e7bb44244ff77871547a9d902d3fab10a4e99574031dcb71da465c"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/reverse-hunter.md",
+   "sha256": "28609906a08eb338a4fddb79d91483c9d7fdcde668c70e63125f09bdd833e317"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-danger-mapper.md",
+   "sha256": "f6699a00767a4b8f464dab94ed986c5f6b39cb825db2472c471d90132d18dd12"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-devils-advocate.md",
+   "sha256": "ed2a61a38753cf6473203ca2f4012ee57820f7800e529240693e697aa3e5f66b"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-entry-mapper.md",
+   "sha256": "f20fee99ae9ddfed51812d6ff779af8137b09bb19a082374dd7ff220b30c81f7"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-exploit-builder.md",
+   "sha256": "949d043d948a5b0c0c4c783b9aa00a990ce83be08a35ccc80df9afd7f747185f"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-file-ranker.md",
+   "sha256": "80b90994c7e04901414c29eaf64e36311036e54052d982a79ffd38c9908b224f"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-flow-tracer.md",
+   "sha256": "c067f5b50632fbc46e65693205b83e90440aede29581669d06ec3000588c5c2c"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-gap-analyzer.md",
+   "sha256": "9b5f883c18e1af3e3785dc2ead970ad655a56e423b2b592efa49f12c3f6fad06"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sast-hunter.md",
+   "sha256": "659bdfe8fa643565befaabb04269716b9a7ad8656255f11092be49c3f165adbd"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/scope-check.md",
+   "sha256": "70c7e014bb3adc726a1f9a4683ad778b971c56d853f57024bf3df2d403bea0ce"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/secrets-hunter.md",
+   "sha256": "d4c89cfc14aad0d698e9218f5d74e20b38931b907a9bb28cd3d0a949b10d9729"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/sqli-hunter.md",
+   "sha256": "3469fdacfe12b8cf34ae9900c2330484ec665dff85b55ef753ae1d8bbe30ca38"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/ssrf-hunter.md",
+   "sha256": "f97eb5578d1ee193fcda1d249a3afa8feb95a5b9b1f7708ba59b932fa9439f30"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/ssti-hunter.md",
+   "sha256": "ea58f40373e6e1a350ee0754171288ee5115e6d4a38abf48f73f79facea5623d"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/subdomain-takeover.md",
+   "sha256": "7e4b22fa0c519f2aaa18dcac1ac8f0c4b2df1c09fb9201a675c792bae009cefa"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/tls-dns-hunter.md",
+   "sha256": "aaa1899f4a3bf7850e052033ffa2d245862a2ec7802e380c614b98751261d85d"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/training-apps-hunter.md",
+   "sha256": "229ed4d09ff6669e95b5cf74631032eb59bdda32825c5811ed87d886cfcd29f8"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/triage-reporter.md",
+   "sha256": "992777fc1d45f6424ea756e309bd5a3337341c9641bc0a9fcfbf4e64a9cbe611"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/validator.md",
+   "sha256": "25c527c223ce5a8314cd163157b4130af9999695a38c9be1f7d46182c47119e5"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/vuln-scanner.md",
+   "sha256": "7e664c10ba967e2b2f9e74c1f59229054c755b1d74fdbb1bf1eeed393e99d35c"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/waf-profiler.md",
+   "sha256": "5b73a1dd9e1afeebfdb51908758eec88725c1ba803bf181338b6b833a313c798"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/web-vuln-hunter.md",
+   "sha256": "a846830ba872412d28d91031019a907fcee2d1656d3d6a9e59815a59f163c772"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/web3-auditor.md",
+   "sha256": "b9deacbf48f62883e6797204e3d4ddc7f49a0c454aa70f07facac6c31a795728"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/web3-hunter.md",
+   "sha256": "59ca112846054b38e23c8eb3181ac48d014a0eaf0cb9e7fe6371f977241ce1cd"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/xss-hunter.md",
+   "sha256": "3431a1a93905e3f28064c5a127ce835f57fad819f571e4046c416a8345316c5d"
+  },
+  {
+   "group": "opencode",
+   "path": "agents/opencode/xxe-hunter.md",
+   "sha256": "7728f377e64ebc6e5d59a1a1dbf277de34d8268e0411ff0430be4d08d3fbd13f"
+  }
+ ],
+ "agent_prompts": [
+  {
+   "path": "agents/hunt_prompt.md",
+   "sha256": "7c17e3e5bb339e57b94a3cd2a6d66e02cc3d37b437b29eea114d081c4053c0ba"
   }
  ],
  "aliases": {
