@@ -1,0 +1,40 @@
+name: Laya Contributor
+description: >-
+  A coding agent for contributing to Laya (github.com/aayushch/laya), the
+  local-first AI notification command centre. Carries a `laya` skill holding the
+  architecture that matters when changing it (the ingest → space → rules →
+  router → workers → stager → emit pipeline and its post-emit steps, the ~27 API
+  routers and the card-surface split, the egress adapter pattern, spaces, n8n
+  workflow versioning, the single shared aiosqlite connection), the repository's
+  contribution conventions, and — the part worth having — the three verified
+  defects found by reproducing them rather than reading the issue tracker: an
+  engine that cannot start on a fresh install because `mcp` 2.x removed four
+  `Server` decorators, a test suite that rewrites the real `~/.laya` and deletes
+  the developer's MCP bearer token on every run, and an unauthenticated
+  `/mcp/token/reveal` that hands over that same token to any local process. It
+  also carries the ordering constraint between those fixes, the `--verify` and
+  claim-checking habits this work is held to, and preparation rules: never push
+  or comment under the user's name. Six scripts enforce the parts that prose
+  cannot: `check_laya_home.py` refuses to let the test suite run in a tree that
+  would delete your MCP token; `verify_claims.py` re-derives every checkable
+  claim in the skill — the paths, the counts, whether each defect is *still*
+  unfixed, whether each prepared branch still exists and is still unpushed, and
+  the issue states — reporting UNKNOWN rather than guessing, with a `--self-test`
+  that proves the checks can fail; `submit_prepared_work.py` ships the whole
+  prepared set in one command, dry-run by default, wiring the fork before it
+  pushes, refusing a branch that no longer merges, and then proving by URL that
+  nothing landed on the maintainer's repository; `handoff_status.py` answers
+  the one question a reader returning after a long gap has — what is done, what is
+  unshipped, and what only they can do — derived from git and the task ledger
+  rather than from prose; and `verify_everything.py` runs every check this work has in
+  one command — the surface rules, the claim verifier, the figure sync, eight
+  repository suites and the other scripts' self-tests — printing the network checks it
+  skipped rather than a green run that quietly omitted them. It exists because each
+  round had been running a different subset: "everything is green" meant "everything I
+  happened to run is green", which is the same failure as a claim that is true of the
+  sample and unchecked outside it. A suite that fails and then passes on a retry is
+  reported FLAKY rather than as a failure, because that is a defect in the test and
+  sending someone to look for it in the product wastes the one thing that is scarce. Every
+  run is also written to `~/.dsh/verify-runs/`, and `--history` prints the failing checks from
+  recent runs: twice a suite failed inside a battery and the detail naming the failing test was
+  lost to a truncated terminal before anyone read it, and neither failure reproduced.

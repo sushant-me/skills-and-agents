@@ -1,0 +1,147 @@
+{
+  "generated": "2026-09-30T12:27:11",
+  "source": "live platform API: /v4/user/info, /experience/v1, /v4/user/profile/basic/<id>, /v5/machines, /v4/challenges, /v4/sherlocks",
+  "why": "written directly from the platform so the record survives any agent's death (it did not, twice)",
+  "account": {
+    "name": "nofear976",
+    "isVip": false,
+    "subscription": "free",
+    "canAccessVIP": false
+  },
+  "level": 81,
+  "levelTitle": "Prodigy",
+  "totalXP": 98664,
+  "rank": "Hacker",
+  "rank_id": 3,
+  "machines": {
+    "system_owns": 11,
+    "user_owns": 14,
+    "owned_user_and_root": 11,
+    "total_in_platform": 553,
+    "active_seasonal_unowned_at_root": [
+      [
+        918,
+        "MakeSense",
+        "Medium"
+      ],
+      [
+        984,
+        "Layover",
+        "Medium"
+      ],
+      [
+        981,
+        "Management",
+        "Easy"
+      ],
+      [
+        978,
+        "Scaffold",
+        "Hard"
+      ],
+      [
+        975,
+        "BlockSynergy",
+        "Insane"
+      ],
+      [
+        963,
+        "TrustFall",
+        "Insane"
+      ],
+      [
+        954,
+        "Odyssey",
+        "Insane"
+      ],
+      [
+        951,
+        "Ghostlink",
+        "Hard"
+      ],
+      [
+        945,
+        "Orion",
+        "Easy"
+      ],
+      [
+        936,
+        "DanglingTree",
+        "Medium"
+      ],
+      [
+        930,
+        "DarkZeroReturns",
+        "Hard"
+      ],
+      [
+        927,
+        "Bedside",
+        "Medium"
+      ],
+      [
+        921,
+        "Paperwork",
+        "Easy"
+      ],
+      [
+        912,
+        "Nimbus",
+        "Hard"
+      ],
+      [
+        909,
+        "Checkpoint",
+        "Medium"
+      ],
+      [
+        903,
+        "DevHub",
+        "Medium"
+      ],
+      [
+        891,
+        "PingPong",
+        "Insane"
+      ],
+      [
+        867,
+        "Silentium",
+        "Easy"
+      ],
+      [
+        864,
+        "Snapped",
+        "Hard"
+      ],
+      [
+        862,
+        "Garfield",
+        "Hard"
+      ],
+      [
+        853,
+        "Principal",
+        "Medium"
+      ],
+      [
+        817,
+        "Eloquia",
+        "Insane"
+      ]
+    ]
+  },
+  "challenges": {
+    "owned": 125,
+    "submittable_remaining": 85,
+    "sweep_rows": 855
+  },
+  "sherlocks": {
+    "platform_total": 267,
+    "reachable_pool": 122,
+    "fully_complete": 103,
+    "tasks_answered": 1055,
+    "note": "the 145 with state=retired are VIP-only; 4 reachable ones have no official writeup and no answers"
+  },
+  "levelGrade": 2
+}
