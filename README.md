@@ -37,7 +37,7 @@ agents/
   hunt_prompt.md           the bughunter round prompt those agents are dispatched with
 MANIFEST.json              machine-readable inventory (paths, SHA-256, aliases, counts)
 SOURCES.md                 upstream URL, licence and skill count per directory
-provenance/                installer manifest snapshot from 2026-09-10 (not a copy)
+provenance/                installer manifest snapshot (2026-09-10) + upstream commit SHAs
 tools/
   build_manifest.py        regenerate MANIFEST.json from disk
   verify_archive.py        completeness + dedupe + provenance verification

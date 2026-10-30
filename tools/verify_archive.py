@@ -9,13 +9,15 @@ Checks, in order:
   4. Every skill installed in the live catalog (~/.agents/skills) is represented
      in the archive, either by name or through a recorded upstream alias.
   5. Every live agent preset (~/.dsh/.agent-presets/*) is archived file-for-file.
-  6. Every live Claude Code subagent definition (~/.claude/agents/*.md) and every
-     opencode agent definition (~/.config/opencode/agent/*.md) is archived
-     byte-for-byte, as is the bughunter round prompt.
-  7. Every vendored collection is file-for-file complete against its upstream
+  6. Every live Claude Code subagent definition (~/.claude/agents/*.md) is
+     archived byte-for-byte.
+  7. Every opencode agent definition (~/.config/opencode/agent/*.md) is archived
+     byte-for-byte.
+  8. The bughunter round prompt is archived byte-for-byte.
+  9. Every vendored collection is file-for-file complete against its upstream
      checkout, including files the upstream .gitignore would hide.
 
-Checks 4-6 are skipped with a warning when the live paths are absent (for
+Checks 4-9 are skipped with a warning when the live paths are absent (for
 example on a fresh clone on another machine); checks 1-3 always run.
 
 Usage:
