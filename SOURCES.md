@@ -7,11 +7,14 @@ files in each directory and are re-derived from `MANIFEST.json`.
 
 ## Vendored from upstream (1,138 skills)
 
+Exact commit SHAs are recorded in
+[`provenance/upstream-revisions.txt`](provenance/upstream-revisions.txt).
+
 | Directory | Upstream | Licence | Skills |
 | --- | --- | --- | --- |
 | `mukul975_Anthropic-Cybersecurity-Skills` | https://github.com/mukul975/Anthropic-Cybersecurity-Skills | Apache-2.0 | 818 |
 | `trailofbits_skills` | https://github.com/trailofbits/skills | CC BY-SA 4.0 | 85 |
-| `elementalsouls_Claude-BugHunter` | https://github.com/elementalsouls/Claude-BugHunter (archived revision `a9e5a01`, 2026-10-02) | MIT | 83 |
+| `elementalsouls_Claude-BugHunter` | https://github.com/elementalsouls/Claude-BugHunter | MIT | 83 |
 | `SnailSploit_Claude-Red` | https://github.com/SnailSploit/Claude-Red | MIT | 80 |
 | `transilienceai_communitytools` | https://github.com/transilienceai/communitytools | MIT | 50 |
 | `crazyMarky_pentest-skills` | https://github.com/crazyMarky/pentest-skills | Apache-2.0 | 11 |

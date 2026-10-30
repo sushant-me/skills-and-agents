@@ -1,0 +1,13 @@
+# Upstream revisions vendored into skills/
+# Each line: archived directory, upstream URL, git commit SHA at vendoring time (2026-10-30)
+
+mukul975_Anthropic-Cybersecurity-Skills  https://github.com/mukul975/Anthropic-Cybersecurity-Skills  54a798831d2266a3ca61ce68a7acb80b81160d57
+trailofbits_skills                       https://github.com/trailofbits/skills                        37c8f145a8e1c533049624f1a29b40d77ccc9db7
+elementalsouls_Claude-BugHunter          https://github.com/elementalsouls/Claude-BugHunter          a9e5a012a7d55acbd7ff9d412c9e0044ad1cd923
+SnailSploit_Claude-Red                   https://github.com/SnailSploit/Claude-Red                   9edaaff90698d8064632ba221a17ef3a87e85734
+transilienceai_communitytools            https://github.com/transilienceai/communitytools            95fdc128af4ca1ae16b3226f9430f1bad97b0656
+crazyMarky_pentest-skills                https://github.com/crazyMarky/pentest-skills                616feed88d5340ae64a49fc0416861cf7ed648d2
+Eyadkelleh_awesome-skills-security       https://github.com/Eyadkelleh/awesome-skills-security       ae26985eb60c2b9e1f1b95f7af0e5c438ff85e6d
+x-glacier_kali-pentest                   https://github.com/x-glacier/kali-pentest                   43138c5eee3c30848f704301f834c2426940563d
+Gabson0x_bountyforge                     https://github.com/Gabson0x/bountyforge                     bb2b5429de5f7f44acfd111ac7ba53abe63810d1
+shaniidev_bug-reaper                     https://github.com/shaniidev/bug-reaper                     af84333a29699a52b9d23c271a437f503c697534
