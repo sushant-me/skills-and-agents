@@ -23,7 +23,7 @@ Exact commit SHAs are recorded in
 | `Gabson0x_bountyforge` | https://github.com/Gabson0x/bountyforge | **NO LICENCE DECLARED** | 1 |
 | `shaniidev_bug-reaper` | https://github.com/shaniidev/bug-reaper | MIT | 1 |
 
-## Project-written, locally authored and unattributed (291 skills)
+## Project-written, locally authored and unattributed (297 skills)
 
 | Directory | Origin | Licence | Skills |
 | --- | --- | --- | --- |

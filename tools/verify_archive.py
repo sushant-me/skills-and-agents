@@ -12,13 +12,15 @@ Checks, in order:
   6. Every live Claude Code subagent definition (~/.claude/agents/*.md) and every
      opencode agent definition (~/.config/opencode/agent/*.md) is archived
      byte-for-byte, as is the bughunter round prompt.
+  7. Every vendored collection is file-for-file complete against its upstream
+     checkout, including files the upstream .gitignore would hide.
 
 Checks 4-6 are skipped with a warning when the live paths are absent (for
 example on a fresh clone on another machine); checks 1-3 always run.
 
 Usage:
     python3 tools/verify_archive.py [--catalog DIR] [--presets DIR]
-        [--claude-agents DIR] [--opencode-agents DIR]
+        [--claude-agents DIR] [--opencode-agents DIR] [--upstream-dir DIR]
 Exit code 0 = PASS, 1 = FAIL.
 """
 
@@ -40,6 +42,8 @@ DEFAULT_CATALOG = os.path.expanduser("~/.agents/skills")
 DEFAULT_PRESETS = os.path.expanduser("~/.dsh/.agent-presets")
 DEFAULT_CLAUDE_AGENTS = os.path.expanduser("~/.claude/agents")
 DEFAULT_OPENCODE_AGENTS = os.path.expanduser("~/.config/opencode/agent")
+DEFAULT_UPSTREAM_DIR = os.path.expanduser("~/tools/skill-repos")
+CLAUDE_BUGHUNTER_SRC = os.path.expanduser("~/Work/bughunter/skills/claude-bughunter")
 
 JUNK = ("__pycache__", ".git", ".pytest_cache")
 
@@ -256,12 +260,89 @@ def check_agent_prompts(rep: Report, manifest: dict) -> None:
         rep.info(f"agent prompt archived byte-for-byte: {name}")
 
 
+JUNK_NAMES = ("__pycache__", ".git", ".pytest_cache", "node_modules")
+
+
+def _walk_source(root: str) -> dict[str, str]:
+    """relative path -> absolute path for every non-junk file and symlink."""
+    out: dict[str, str] = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        keep = []
+        for d in dirnames:
+            if d in JUNK_NAMES:
+                continue
+            p = os.path.join(dirpath, d)
+            if os.path.islink(p):
+                out[os.path.relpath(p, root)] = p
+            else:
+                keep.append(d)
+        dirnames[:] = keep
+        for f in filenames:
+            if f.endswith((".pyc",)) or f == ".DS_Store" or ".bak" in f:
+                continue
+            p = os.path.join(dirpath, f)
+            out[os.path.relpath(p, root)] = p
+    return out
+
+
+def _norm_sha(path: str) -> str:
+    data = open(path, "rb").read().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
+def check_upstream(rep: Report, manifest: dict, upstream_dir: str) -> None:
+    """Every vendored collection must be file-for-file complete against upstream.
+
+    This catches files that the vendored repositories' own .gitignore rules would
+    otherwise silently keep out of the archive (assets, openspec docs, symlinks).
+    """
+    collections = {c["dir"] for c in manifest.get("collections", [])}
+    checked = 0
+    for name in sorted(collections):
+        src = CLAUDE_BUGHUNTER_SRC if name == "elementalsouls_Claude-BugHunter" \
+            else os.path.join(upstream_dir, name)
+        if not os.path.isdir(src):
+            continue
+        checked += 1
+        arch_root = os.path.join(SKILLS, name)
+        src_files = _walk_source(src)
+        arch_files = _walk_source(arch_root)
+        missing = sorted(set(src_files) - set(arch_files))
+        extra = sorted(set(arch_files) - set(src_files))
+        if missing:
+            rep.fail(f"{name}: {len(missing)} upstream file(s)/link(s) missing from "
+                     f"archive: {missing[:6]}")
+        mismatch = []
+        for rel in sorted(set(src_files) & set(arch_files)):
+            a, b = src_files[rel], arch_files[rel]
+            if os.path.islink(a) or os.path.islink(b):
+                if not (os.path.islink(a) and os.path.islink(b)
+                        and os.readlink(a) == os.readlink(b)):
+                    mismatch.append(rel)
+            elif _norm_sha(a) != _norm_sha(b):
+                mismatch.append(rel)
+        if mismatch:
+            rep.fail(f"{name}: {len(mismatch)} file(s) differ from upstream: {mismatch[:6]}")
+        if extra:
+            rep.warn(f"{name}: {len(extra)} file(s) in archive but not upstream "
+                     f"(curated/removed): {extra[:4]}")
+        if not missing and not mismatch:
+            rep.info(f"{name}: {len(src_files)} upstream entries archived "
+                     f"file-for-file ({len(extra)} curated extra)")
+    if checked == 0:
+        rep.warn(f"no upstream source trees found under {upstream_dir} - "
+                 f"byte-for-byte collection check skipped")
+    else:
+        rep.info(f"vendored-collection check ran for {checked} collection(s)")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--catalog", default=DEFAULT_CATALOG)
     ap.add_argument("--presets", default=DEFAULT_PRESETS)
     ap.add_argument("--claude-agents", default=DEFAULT_CLAUDE_AGENTS)
     ap.add_argument("--opencode-agents", default=DEFAULT_OPENCODE_AGENTS)
+    ap.add_argument("--upstream-dir", default=DEFAULT_UPSTREAM_DIR)
     args = ap.parse_args()
 
     rep = Report()
@@ -273,6 +354,7 @@ def main() -> int:
         check_agent_group(rep, "Claude Code", args.claude_agents, "opencodex", manifest)
         check_agent_group(rep, "opencode", args.opencode_agents, "opencode", manifest)
         check_agent_prompts(rep, manifest)
+        check_upstream(rep, manifest, args.upstream_dir)
 
     print(f"archive: {REPO}")
     if manifest:
